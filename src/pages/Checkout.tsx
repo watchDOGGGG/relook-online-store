@@ -6,22 +6,23 @@ import Footer from "@/components/Footer";
 import Cart from "@/components/Cart";
 import { useCart } from "@/context/CartContext";
 import { useCheckout, ShippingInfo } from "@/context/CheckoutContext";
+import { useAuth } from "@/context/AuthContext";
 import { useCountries } from "@/hooks/useCountries";
 import { formatNaira } from "@/lib/formatCurrency";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
-
-const PAYPAL_CLIENT_ID = "test"; // Replace with actual PayPal client ID
 
 const Checkout = () => {
   const navigate = useNavigate();
   const { items, totalPrice, clearCart } = useCart();
   const { shippingInfo, setShippingInfo, setIsPaymentComplete } = useCheckout();
+  const { user } = useAuth();
   const { countries, loading: countriesLoading } = useCountries();
   
   const [formData, setFormData] = useState<ShippingInfo>(shippingInfo);
   const [errors, setErrors] = useState<Partial<ShippingInfo>>({});
   const [step, setStep] = useState<"shipping" | "payment">("shipping");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     if (items.length === 0) {
@@ -68,15 +69,84 @@ const Checkout = () => {
     }
   };
 
-  const handlePaymentSuccess = () => {
-    setIsPaymentComplete(true);
-    clearCart();
-    toast.success("Payment successful! Your order has been placed.");
-    navigate("/order-confirmation");
-  };
+  const handlePayWithPaystack = async () => {
+    setIsProcessing(true);
 
-  // Convert Naira to USD for PayPal (approximate rate)
-  const totalPriceUSD = (totalPrice / 1500).toFixed(2);
+    try {
+      // Create order in database first
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          user_id: user?.id || null,
+          status: "pending",
+          total_amount: totalPrice,
+          shipping_first_name: formData.firstName,
+          shipping_last_name: formData.lastName,
+          shipping_email: formData.email,
+          shipping_phone: formData.phone,
+          shipping_address: formData.address,
+          shipping_city: formData.city,
+          shipping_state: formData.state,
+          shipping_country: formData.country,
+          shipping_postal_code: formData.postalCode || null,
+          payment_provider: "paystack",
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create order items
+      const orderItems = items.map((item) => ({
+        order_id: order.id,
+        product_id: item.product.id,
+        product_name: item.product.name,
+        product_price: item.product.price,
+        size: item.size,
+        quantity: item.quantity,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from("order_items")
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      // Initialize Paystack payment
+      const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
+        "paystack-initialize",
+        {
+          body: {
+            email: formData.email,
+            amount: totalPrice * 100, // Convert to kobo
+            orderId: order.id,
+            metadata: {
+              customer_name: `${formData.firstName} ${formData.lastName}`,
+              phone: formData.phone,
+            },
+          },
+        }
+      );
+
+      if (paymentError) throw paymentError;
+
+      if (paymentData.success && paymentData.authorization_url) {
+        // Store order info for confirmation page
+        setIsPaymentComplete(false);
+        clearCart();
+        
+        // Redirect to Paystack payment page
+        window.location.href = paymentData.authorization_url;
+      } else {
+        throw new Error(paymentData.error || "Failed to initialize payment");
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+      toast.error("Failed to process payment. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   if (items.length === 0) {
     return null;
@@ -166,7 +236,7 @@ const Checkout = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">
-                        Phone Number *
+                        Phone Number (WhatsApp) *
                       </label>
                       <input
                         type="tel"
@@ -316,40 +386,28 @@ const Checkout = () => {
                     </p>
                   </div>
 
-                  {/* PayPal */}
+                  {/* Paystack */}
                   <div className="border border-border rounded-lg p-6">
-                    <h3 className="font-semibold mb-4">Pay with PayPal</h3>
-                    <PayPalScriptProvider options={{ clientId: PAYPAL_CLIENT_ID, currency: "USD" }}>
-                      <PayPalButtons
-                        style={{ layout: "vertical" }}
-                        createOrder={(_data, actions) => {
-                          return actions.order.create({
-                            intent: "CAPTURE",
-                            purchase_units: [
-                              {
-                                amount: {
-                                  currency_code: "USD",
-                                  value: totalPriceUSD,
-                                },
-                                description: `Relook Sneakers Order - ${items.length} item(s)`,
-                              },
-                            ],
-                          });
-                        }}
-                        onApprove={async (_data, actions) => {
-                          if (actions.order) {
-                            await actions.order.capture();
-                            handlePaymentSuccess();
-                          }
-                        }}
-                        onError={(err) => {
-                          console.error("PayPal error:", err);
-                          toast.error("Payment failed. Please try again.");
-                        }}
-                      />
-                    </PayPalScriptProvider>
+                    <h3 className="font-semibold mb-4">Pay with Paystack</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Secure payment powered by Paystack. You'll be redirected to complete your payment.
+                    </p>
+                    <button
+                      onClick={handlePayWithPaystack}
+                      disabled={isProcessing}
+                      className="w-full btn-primary py-4 text-base flex items-center justify-center gap-2"
+                    >
+                      {isProcessing ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        `Pay ${formatNaira(totalPrice)}`
+                      )}
+                    </button>
                     <p className="text-xs text-muted-foreground text-center mt-4">
-                      Total: {formatNaira(totalPrice)} (≈ ${totalPriceUSD} USD)
+                      By proceeding, you agree to our terms and conditions.
                     </p>
                   </div>
                 </div>

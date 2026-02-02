@@ -1,13 +1,22 @@
 import { Link } from "react-router-dom";
-import { ShoppingBag, Menu, X, Search } from "lucide-react";
+import { ShoppingBag, Menu, X, Search, User, LogOut, Settings } from "lucide-react";
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
 import SearchModal from "@/components/SearchModal";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { totalItems, setIsCartOpen } = useCart();
+  const { user, isAdmin, signOut } = useAuth();
 
   const navLinks = [
     { name: "New", href: "/shop?filter=new" },
@@ -15,6 +24,10 @@ const Header = () => {
     { name: "Lifestyle", href: "/shop?category=lifestyle" },
     { name: "Sale", href: "/shop?filter=sale" },
   ];
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     <>
@@ -49,7 +62,7 @@ const Header = () => {
             </div>
 
             {/* Right side icons */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4">
               <button
                 onClick={() => setSearchOpen(true)}
                 className="p-2 hover:bg-secondary rounded-full transition-colors"
@@ -57,6 +70,49 @@ const Header = () => {
               >
                 <Search className="w-5 h-5" />
               </button>
+
+              {/* User menu */}
+              {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="p-2 hover:bg-secondary rounded-full transition-colors"
+                      aria-label="Account"
+                    >
+                      <User className="w-5 h-5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground truncate">
+                      {user.email}
+                    </div>
+                    <DropdownMenuSeparator />
+                    {isAdmin && (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin" className="cursor-pointer">
+                            <Settings className="w-4 h-4 mr-2" />
+                            Admin Dashboard
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
+                    <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Link
+                  to="/auth"
+                  className="p-2 hover:bg-secondary rounded-full transition-colors"
+                  aria-label="Sign in"
+                >
+                  <User className="w-5 h-5" />
+                </Link>
+              )}
 
               <button
                 onClick={() => setIsCartOpen(true)}
@@ -99,6 +155,36 @@ const Header = () => {
                   {link.name}
                 </Link>
               ))}
+              {user ? (
+                <>
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block py-3 text-base font-semibold uppercase tracking-wide"
+                    >
+                      Admin Dashboard
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => {
+                      handleSignOut();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="block py-3 text-base font-semibold uppercase tracking-wide text-left w-full"
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <Link
+                  to="/auth"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-3 text-base font-semibold uppercase tracking-wide"
+                >
+                  Sign In
+                </Link>
+              )}
             </div>
           )}
         </nav>
