@@ -1,24 +1,53 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ChevronLeft, Heart, Truck, Shield, Minus, Plus } from "lucide-react";
+import { ChevronLeft, Heart, Truck, Shield, Minus, Plus, Loader2 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Cart from "@/components/Cart";
 import ProductCard from "@/components/ProductCard";
-import { getProductById, products } from "@/data/products";
+import { useProduct, useProducts, Product as DBProduct } from "@/hooks/useProducts";
 import { useCart } from "@/context/CartContext";
 import { formatNaira } from "@/lib/formatCurrency";
 import { toast } from "sonner";
+
+// Convert database product to the format expected by cart
+const convertProduct = (p: DBProduct) => ({
+  id: p.id,
+  name: p.name,
+  description: p.description || "",
+  price: p.price,
+  originalPrice: p.original_price || undefined,
+  images: p.images || [],
+  sizes: p.sizes || [],
+  category: p.category,
+  isNew: p.is_new || false,
+  isSale: p.is_sale || false,
+});
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
   
-  const product = getProductById(id || "");
+  const { data: product, isLoading } = useProduct(id || "");
+  const { data: allProducts } = useProducts();
+  
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <Cart />
+        <main className="pt-32 pb-16 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-accent" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -47,8 +76,9 @@ const ProductDetail = () => {
       return;
     }
     
+    const cartProduct = convertProduct(product);
     for (let i = 0; i < quantity; i++) {
-      addToCart(product, selectedSize);
+      addToCart(cartProduct, selectedSize);
     }
     
     toast.success(`${product.name} added to bag`, {
@@ -57,9 +87,13 @@ const ProductDetail = () => {
   };
 
   // Get related products (same category, different product)
-  const relatedProducts = products
+  const relatedProducts = (allProducts || [])
     .filter((p) => p.category === product.category && p.id !== product.id)
-    .slice(0, 4);
+    .slice(0, 4)
+    .map(convertProduct);
+
+  const images = product.images || [];
+  const sizes = product.sizes || [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -82,17 +116,23 @@ const ProductDetail = () => {
             {/* Image gallery */}
             <div className="space-y-4">
               <div className="aspect-square bg-secondary rounded-lg overflow-hidden">
-                <img
-                  src={product.images[selectedImage]}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
+                {images.length > 0 ? (
+                  <img
+                    src={images[selectedImage]}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                    No Image
+                  </div>
+                )}
               </div>
               
               {/* Thumbnail strip */}
-              {product.images.length > 1 && (
+              {images.length > 1 && (
                 <div className="flex gap-2">
-                  {product.images.map((image, index) => (
+                  {images.map((image, index) => (
                     <button
                       key={index}
                       onClick={() => setSelectedImage(index)}
@@ -115,12 +155,12 @@ const ProductDetail = () => {
             <div className="lg:sticky lg:top-32 lg:self-start">
               {/* Badges */}
               <div className="flex gap-2 mb-4">
-                {product.isNew && (
+                {product.is_new && (
                   <span className="px-3 py-1 bg-primary text-primary-foreground text-xs font-bold uppercase">
                     New
                   </span>
                 )}
-                {product.isSale && (
+                {product.is_sale && (
                   <span className="px-3 py-1 bg-accent text-accent-foreground text-xs font-bold uppercase">
                     Sale
                   </span>
@@ -134,16 +174,16 @@ const ProductDetail = () => {
               <h1 className="text-headline mb-4">{product.name}</h1>
               
               <div className="flex items-center gap-3 mb-6">
-                {product.originalPrice ? (
+                {product.original_price ? (
                   <>
                     <span className="text-2xl font-bold text-accent">
                       {formatNaira(product.price)}
                     </span>
                     <span className="text-lg text-muted-foreground line-through">
-                      {formatNaira(product.originalPrice)}
+                      {formatNaira(product.original_price)}
                     </span>
                     <span className="px-2 py-1 bg-accent/10 text-accent text-sm font-semibold rounded">
-                      {Math.round((1 - product.price / product.originalPrice) * 100)}% OFF
+                      {Math.round((1 - product.price / product.original_price) * 100)}% OFF
                     </span>
                   </>
                 ) : (
@@ -166,7 +206,7 @@ const ProductDetail = () => {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {[38, 39, 40, 41, 42, 43, 44, 45, 46].map((size) => {
-                    const isAvailable = product.sizes.includes(size);
+                    const isAvailable = sizes.includes(size);
                     const isSelected = selectedSize === size;
 
                     return (

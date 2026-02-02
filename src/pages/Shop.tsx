@@ -4,24 +4,39 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Cart from "@/components/Cart";
 import ProductCard from "@/components/ProductCard";
-import { products } from "@/data/products";
-import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
+import { useProducts, Product } from "@/hooks/useProducts";
+import { ChevronDown, SlidersHorizontal, X, Loader2 } from "lucide-react";
 
 const Shop = () => {
   const [searchParams] = useSearchParams();
   const [sortBy, setSortBy] = useState("featured");
   const [showFilters, setShowFilters] = useState(false);
+  const { data: products, isLoading } = useProducts();
 
   const filter = searchParams.get("filter");
   const category = searchParams.get("category");
 
+  // Convert database products to the format expected by ProductCard
+  const convertProduct = (p: Product) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description || "",
+    price: p.price,
+    originalPrice: p.original_price || undefined,
+    images: p.images || [],
+    sizes: p.sizes || [],
+    category: p.category,
+    isNew: p.is_new || false,
+    isSale: p.is_sale || false,
+  });
+
   // Filter products based on URL params
-  let filteredProducts = [...products];
+  let filteredProducts = [...(products || [])];
 
   if (filter === "new") {
-    filteredProducts = filteredProducts.filter((p) => p.isNew);
+    filteredProducts = filteredProducts.filter((p) => p.is_new);
   } else if (filter === "sale") {
-    filteredProducts = filteredProducts.filter((p) => p.isSale);
+    filteredProducts = filteredProducts.filter((p) => p.is_sale);
   }
 
   if (category) {
@@ -36,8 +51,8 @@ const Shop = () => {
   } else if (sortBy === "price-high") {
     filteredProducts.sort((a, b) => b.price - a.price);
   } else if (sortBy === "newest") {
-    filteredProducts = filteredProducts.filter((p) => p.isNew).concat(
-      filteredProducts.filter((p) => !p.isNew)
+    filteredProducts = filteredProducts.filter((p) => p.is_new).concat(
+      filteredProducts.filter((p) => !p.is_new)
     );
   }
 
@@ -59,7 +74,7 @@ const Shop = () => {
           <div className="mb-8 md:mb-12">
             <h1 className="text-headline uppercase">{getPageTitle()}</h1>
             <p className="text-muted-foreground mt-2">
-              {filteredProducts.length} product{filteredProducts.length !== 1 ? "s" : ""}
+              {isLoading ? "Loading..." : `${filteredProducts.length} product${filteredProducts.length !== 1 ? "s" : ""}`}
             </p>
           </div>
 
@@ -130,15 +145,15 @@ const Shop = () => {
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" className="rounded" />
-                      <span className="text-sm">Under $150</span>
+                      <span className="text-sm">Under ₦75,000</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" className="rounded" />
-                      <span className="text-sm">$150 - $200</span>
+                      <span className="text-sm">₦75,000 - ₦100,000</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" className="rounded" />
-                      <span className="text-sm">Over $200</span>
+                      <span className="text-sm">Over ₦100,000</span>
                     </label>
                   </div>
                 </div>
@@ -161,8 +176,15 @@ const Shop = () => {
             </div>
           )}
 
+          {/* Loading state */}
+          {isLoading && (
+            <div className="flex justify-center py-16">
+              <Loader2 className="w-8 h-8 animate-spin text-accent" />
+            </div>
+          )}
+
           {/* Product grid */}
-          {filteredProducts.length > 0 ? (
+          {!isLoading && filteredProducts.length > 0 ? (
             <div className="product-grid">
               {filteredProducts.map((product, index) => (
                 <div
@@ -170,18 +192,18 @@ const Shop = () => {
                   className="animate-fade-in"
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <ProductCard product={product} />
+                  <ProductCard product={convertProduct(product)} />
                 </div>
               ))}
             </div>
-          ) : (
+          ) : !isLoading ? (
             <div className="text-center py-16">
               <h3 className="text-title mb-2">No products found</h3>
               <p className="text-muted-foreground">
-                Try adjusting your filters or search criteria.
+                Try adjusting your filters or check back later for new arrivals.
               </p>
             </div>
-          )}
+          ) : null}
         </div>
       </main>
 

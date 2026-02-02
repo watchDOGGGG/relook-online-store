@@ -1,10 +1,22 @@
 import { Link } from "react-router-dom";
 import { Heart } from "lucide-react";
-import { Product } from "@/data/products";
 import { formatNaira } from "@/lib/formatCurrency";
 
+export interface ProductCardProduct {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  originalPrice?: number;
+  images: string[];
+  sizes: number[];
+  category: string;
+  isNew?: boolean;
+  isSale?: boolean;
+}
+
 interface ProductCardProps {
-  product: Product;
+  product: ProductCardProduct;
 }
 
 const ProductCard = ({ product }: ProductCardProps) => {
@@ -13,11 +25,17 @@ const ProductCard = ({ product }: ProductCardProps) => {
       <div className="product-card">
         {/* Image container */}
         <div className="relative aspect-square bg-secondary overflow-hidden">
-          <img
-            src={product.images[0]}
-            alt={product.name}
-            className="product-image w-full h-full object-cover"
-          />
+          {product.images?.[0] ? (
+            <img
+              src={product.images[0]}
+              alt={product.name}
+              className="product-image w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+              No Image
+            </div>
+          )}
           
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col gap-2">

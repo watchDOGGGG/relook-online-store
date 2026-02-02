@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Search } from "lucide-react";
+import { X, Search, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { searchProducts, Product } from "@/data/products";
+import { searchProducts, Product } from "@/hooks/useProducts";
 import { formatNaira } from "@/lib/formatCurrency";
 
 interface SearchModalProps {
@@ -12,6 +12,7 @@ interface SearchModalProps {
 const SearchModal = ({ isOpen, onClose }: SearchModalProps) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Product[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -21,12 +22,25 @@ const SearchModal = ({ isOpen, onClose }: SearchModalProps) => {
   }, [isOpen]);
 
   useEffect(() => {
-    if (query.length > 0) {
-      const searchResults = searchProducts(query);
-      setResults(searchResults);
-    } else {
-      setResults([]);
-    }
+    const search = async () => {
+      if (query.length > 0) {
+        setIsSearching(true);
+        try {
+          const searchResults = await searchProducts(query);
+          setResults(searchResults);
+        } catch (error) {
+          console.error("Search error:", error);
+          setResults([]);
+        } finally {
+          setIsSearching(false);
+        }
+      } else {
+        setResults([]);
+      }
+    };
+
+    const debounce = setTimeout(search, 300);
+    return () => clearTimeout(debounce);
   }, [query]);
 
   useEffect(() => {
@@ -59,7 +73,11 @@ const SearchModal = ({ isOpen, onClose }: SearchModalProps) => {
         <div className="p-4 md:p-6 border-b border-border">
           <div className="container-wide">
             <div className="relative flex items-center gap-4">
-              <Search className="w-5 h-5 text-muted-foreground" />
+              {isSearching ? (
+                <Loader2 className="w-5 h-5 text-accent animate-spin" />
+              ) : (
+                <Search className="w-5 h-5 text-muted-foreground" />
+              )}
               <input
                 ref={inputRef}
                 type="text"
@@ -82,7 +100,7 @@ const SearchModal = ({ isOpen, onClose }: SearchModalProps) => {
         {/* Results */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="container-wide">
-            {query.length > 0 && (
+            {query.length > 0 && !isSearching && (
               <p className="text-sm text-muted-foreground mb-4">
                 {results.length} result{results.length !== 1 ? "s" : ""} for "{query}"
               </p>
@@ -98,11 +116,17 @@ const SearchModal = ({ isOpen, onClose }: SearchModalProps) => {
                     className="group"
                   >
                     <div className="aspect-square bg-secondary rounded-lg overflow-hidden mb-2">
-                      <img
-                        src={product.images[0]}
-                        alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
+                      {product.images?.[0] ? (
+                        <img
+                          src={product.images[0]}
+                          alt={product.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                          No Image
+                        </div>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground uppercase">
                       {product.category}
@@ -116,7 +140,7 @@ const SearchModal = ({ isOpen, onClose }: SearchModalProps) => {
                   </Link>
                 ))}
               </div>
-            ) : query.length > 0 ? (
+            ) : query.length > 0 && !isSearching ? (
               <div className="text-center py-12">
                 <p className="text-muted-foreground">
                   No sneakers found matching "{query}"
