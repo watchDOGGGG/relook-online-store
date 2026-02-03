@@ -59,14 +59,47 @@ serve(async (req) => {
     const isSuccessful = data.data.status === "success";
 
     if (isSuccessful) {
-      // Update order status to paid
-      const { error: updateError } = await supabase
+      // Update order status to paid using payment reference
+      const { data: orderData, error: updateError } = await supabase
         .from("orders")
-        .update({ status: "paid" })
-        .eq("id", reference);
+        .update({ status: "paid", payment_reference: reference })
+        .eq("payment_reference", reference)
+        .select(`
+          *,
+          order_items (*)
+        `)
+        .single();
 
       if (updateError) {
         console.error("Error updating order status:", updateError);
+      }
+
+      // Try to send WhatsApp notification
+      if (orderData) {
+        try {
+          const notificationResponse = await fetch(
+            `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-whatsapp`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+              },
+              body: JSON.stringify({
+                customerPhone: orderData.shipping_phone,
+                customerName: `${orderData.shipping_first_name} ${orderData.shipping_last_name}`,
+                orderId: orderData.id,
+                orderItems: orderData.order_items,
+                totalAmount: orderData.total_amount,
+              }),
+            }
+          );
+
+          const notificationData = await notificationResponse.json();
+          console.log("WhatsApp notification response:", notificationData);
+        } catch (notifError) {
+          console.error("Error sending WhatsApp notification:", notifError);
+        }
       }
     }
 

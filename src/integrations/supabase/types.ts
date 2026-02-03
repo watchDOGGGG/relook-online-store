@@ -131,10 +131,12 @@ export type Database = {
           images: string[] | null
           is_new: boolean | null
           is_sale: boolean | null
+          is_sold_out: boolean | null
           name: string
           original_price: number | null
           price: number
           sizes: number[] | null
+          stock_quantity: number | null
           updated_at: string
         }
         Insert: {
@@ -145,10 +147,12 @@ export type Database = {
           images?: string[] | null
           is_new?: boolean | null
           is_sale?: boolean | null
+          is_sold_out?: boolean | null
           name: string
           original_price?: number | null
           price: number
           sizes?: number[] | null
+          stock_quantity?: number | null
           updated_at?: string
         }
         Update: {
@@ -159,10 +163,12 @@ export type Database = {
           images?: string[] | null
           is_new?: boolean | null
           is_sale?: boolean | null
+          is_sold_out?: boolean | null
           name?: string
           original_price?: number | null
           price?: number
           sizes?: number[] | null
+          stock_quantity?: number | null
           updated_at?: string
         }
         Relationships: []

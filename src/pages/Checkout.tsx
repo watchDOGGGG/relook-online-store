@@ -236,7 +236,7 @@ const Checkout = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">
-                        Phone Number (WhatsApp) *
+                        WhatsApp Phone Number *
                       </label>
                       <input
                         type="tel"
@@ -251,6 +251,10 @@ const Checkout = () => {
                       {errors.phone && (
                         <p className="text-destructive text-sm mt-1">{errors.phone}</p>
                       )}
+                      <p className="text-xs text-muted-foreground mt-1.5 flex items-start gap-1">
+                        <span className="inline-block w-4 h-4 bg-[#25D366] rounded-full flex-shrink-0 mt-0.5"></span>
+                        We'll use this WhatsApp number to send delivery updates and help track your order. You can also reach us on this number.
+                      </p>
                     </div>
                   </div>
 
