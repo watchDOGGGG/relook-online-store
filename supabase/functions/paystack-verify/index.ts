@@ -100,6 +100,35 @@ serve(async (req) => {
         } catch (notifError) {
           console.error("Error sending WhatsApp notification:", notifError);
         }
+
+        // Send email receipt
+        try {
+          const emailResponse = await fetch(
+            `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-order-receipt`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+              },
+              body: JSON.stringify({
+                customerEmail: orderData.shipping_email,
+                customerName: `${orderData.shipping_first_name} ${orderData.shipping_last_name}`,
+                orderId: orderData.id,
+                orderItems: orderData.order_items,
+                totalAmount: orderData.total_amount,
+                shippingAddress: orderData.shipping_address,
+                shippingCity: orderData.shipping_city,
+                shippingState: orderData.shipping_state,
+              }),
+            }
+          );
+
+          const emailData = await emailResponse.json();
+          console.log("Email receipt response:", emailData);
+        } catch (emailError) {
+          console.error("Error sending email receipt:", emailError);
+        }
       }
     }
 
