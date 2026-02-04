@@ -27,7 +27,7 @@ const Index = () => {
                 </div>
                 <h3 className="text-title">Free Shipping</h3>
                 <p className="text-muted-foreground">
-                  Complimentary shipping on all orders over $150.
+                  Complimentary shipping on all orders over ₦150,000.
                 </p>
               </div>
               <div className="space-y-4">
