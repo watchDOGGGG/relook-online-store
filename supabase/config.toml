@@ -7,11 +7,11 @@ site_url = "https://id-preview--6327cdf2-cc2f-4611-9425-287259fcf9c7.lovable.app
 enable_signup = true
 double_confirm_changes = true
 enable_confirmations = true
-sender_name = "Relookshoes"
+ sender_name = "Relook Stores"
 subject_confirmation = "Confirm your email"
 template_confirmation = """
 <h1>Confirm your email</h1>
-<p>Thanks for signing up for Relookshoes!</p>
+ <p>Thanks for signing up for Relook Stores!</p>
 <p>Please confirm your email address by clicking the button below:</p>
 <p><a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 12px 24px; background-color: #000; color: #fff; text-decoration: none; border-radius: 4px;">Verify Email</a></p>
 <p>If you didn't create an account, you can safely ignore this email.</p>
