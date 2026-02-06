@@ -19,26 +19,37 @@ const Checkout = () => {
   const { user } = useAuth();
   const { countries, loading: countriesLoading } = useCountries();
   
-  const [formData, setFormData] = useState<ShippingInfo>(shippingInfo);
+  const [formData, setFormData] = useState<ShippingInfo>({
+    ...shippingInfo,
+    email: user?.email || shippingInfo.email,
+  });
   const [errors, setErrors] = useState<Partial<ShippingInfo>>({});
   const [step, setStep] = useState<"shipping" | "payment">("shipping");
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Redirect if cart is empty
   useEffect(() => {
     if (items.length === 0) {
       navigate("/shop");
     }
   }, [items, navigate]);
 
+  // Pre-fill email from auth user
+  useEffect(() => {
+    if (user?.email && !formData.email) {
+      setFormData(prev => ({ ...prev, email: user.email! }));
+    }
+  }, [user]);
+
   const validateForm = (): boolean => {
     const newErrors: Partial<ShippingInfo> = {};
     
     if (!formData.firstName.trim()) newErrors.firstName = "First name is required";
     if (!formData.lastName.trim()) newErrors.lastName = "Last name is required";
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Invalid email address";
+    if (!formData.phone.trim()) {
+      newErrors.phone = "Phone number is required";
+    } else if (!/^\+?[\d\s-]{10,}$/.test(formData.phone)) {
+      newErrors.phone = "Invalid phone number";
     }
     if (!formData.phone.trim()) {
       newErrors.phone = "Phone number is required";
@@ -230,24 +241,22 @@ const Checkout = () => {
 
                   {/* Contact */}
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
+                    <div className="col-span-2">
                       <label className="block text-sm font-medium mb-2">
-                        Email Address *
+                        Email Address
                       </label>
                       <input
                         type="email"
                         name="email"
                         value={formData.email}
-                        onChange={handleInputChange}
-                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent ${
-                          errors.email ? "border-destructive" : "border-border"
-                        }`}
+                        disabled
+                        className="w-full px-4 py-3 border border-border rounded-lg bg-secondary text-muted-foreground cursor-not-allowed"
                       />
-                      {errors.email && (
-                        <p className="text-destructive text-sm mt-1">{errors.email}</p>
-                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Using your account email for order confirmation
+                      </p>
                     </div>
-                    <div>
+                    <div className="col-span-2">
                       <label className="block text-sm font-medium mb-2">
                         WhatsApp Phone Number *
                       </label>
@@ -266,7 +275,7 @@ const Checkout = () => {
                       )}
                       <p className="text-xs text-muted-foreground mt-1.5 flex items-start gap-1">
                         <span className="inline-block w-4 h-4 bg-[#25D366] rounded-full flex-shrink-0 mt-0.5"></span>
-                        We'll use this WhatsApp number to send delivery updates and help track your order. You can also reach us on this number.
+                        We'll use this WhatsApp number to send delivery updates and help track your order.
                       </p>
                     </div>
                   </div>
