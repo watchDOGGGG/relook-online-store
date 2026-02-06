@@ -27,19 +27,96 @@ serve(async (req) => {
     }
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY) {
       throw new Error("Supabase environment variables not configured");
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    // Get authorization header for user authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      console.error("Missing authorization header");
+      return new Response(
+        JSON.stringify({ success: false, error: "Missing authorization header" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Create client with user's auth token to verify ownership
+    const supabaseUserClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    // Verify user authentication
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabaseUserClient.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error("Authentication failed:", claimsError);
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
+    console.log(`Authenticated user: ${userId}`);
 
     const body: PaystackInitializeRequest = await req.json();
     const { email, amount, orderId, metadata } = body;
 
     if (!email || !amount || !orderId) {
       throw new Error("Missing required fields: email, amount, orderId");
+    }
+
+    // Verify order ownership before proceeding
+    const { data: order, error: orderError } = await supabaseUserClient
+      .from("orders")
+      .select("id, user_id, status")
+      .eq("id", orderId)
+      .single();
+
+    if (orderError || !order) {
+      console.error("Order not found:", orderError);
+      return new Response(
+        JSON.stringify({ success: false, error: "Order not found" }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Verify the order belongs to the authenticated user
+    if (order.user_id !== userId) {
+      console.error(`Order ownership mismatch. Order user: ${order.user_id}, Auth user: ${userId}`);
+      return new Response(
+        JSON.stringify({ success: false, error: "Order does not belong to authenticated user" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Verify order is in correct status
+    if (order.status !== "pending") {
+      console.error(`Order is not in pending status: ${order.status}`);
+      return new Response(
+        JSON.stringify({ success: false, error: "Order has already been processed" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     console.log(`Initializing Paystack payment for order ${orderId}, amount: ${amount}`);
@@ -58,6 +135,7 @@ serve(async (req) => {
         callback_url: `${req.headers.get("origin")}/order-confirmation?reference=${orderId}`,
         metadata: {
           order_id: orderId,
+          user_id: userId,
           ...metadata,
         },
       }),
@@ -72,8 +150,9 @@ serve(async (req) => {
 
     console.log("Paystack initialization successful:", data);
 
-    // Update order with payment reference
-    const { error: updateError } = await supabase
+    // Use service role key only for updating payment reference (after ownership verified)
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const { error: updateError } = await supabaseAdmin
       .from("orders")
       .update({ payment_reference: data.data.reference })
       .eq("id", orderId);

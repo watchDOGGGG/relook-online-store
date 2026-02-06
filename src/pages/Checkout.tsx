@@ -70,14 +70,27 @@ const Checkout = () => {
   };
 
   const handlePayWithPaystack = async () => {
+    // Require authentication for checkout
+    if (!user) {
+      toast.error("Please sign in to complete your purchase");
+      navigate("/auth?redirect=/checkout");
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
+      // Get current session for auth token
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session?.access_token) {
+        throw new Error("No active session. Please sign in again.");
+      }
+
       // Create order in database first
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
-          user_id: user?.id || null,
+          user_id: user.id,
           status: "pending",
           total_amount: totalPrice,
           shipping_first_name: formData.firstName,
@@ -112,7 +125,7 @@ const Checkout = () => {
 
       if (itemsError) throw itemsError;
 
-      // Initialize Paystack payment
+      // Initialize Paystack payment with auth header
       const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
         "paystack-initialize",
         {
