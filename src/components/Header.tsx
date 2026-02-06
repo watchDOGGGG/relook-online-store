@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ShoppingBag, Menu, X, Search, User, LogOut, Settings } from "lucide-react";
+import { ShoppingBag, Menu, X, Search, User, LogOut, Settings, MapPin } from "lucide-react";
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
@@ -87,17 +87,30 @@ const Header = () => {
                       {user.email}
                     </div>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/my-orders" className="cursor-pointer">
+                        <ShoppingBag className="w-4 h-4 mr-2" />
+                        My Orders
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/my-addresses" className="cursor-pointer">
+                        <MapPin className="w-4 h-4 mr-2" />
+                        My Addresses
+                      </Link>
+                    </DropdownMenuItem>
                     {isAdmin && (
                       <>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem asChild>
                           <Link to="/admin" className="cursor-pointer">
                             <Settings className="w-4 h-4 mr-2" />
                             Admin Dashboard
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
                       </>
                     )}
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
                       <LogOut className="w-4 h-4 mr-2" />
                       Sign Out

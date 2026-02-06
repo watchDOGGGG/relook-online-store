@@ -27,9 +27,9 @@ const Hero = () => {
               New Collection
             </span>
             <h1 className="text-display text-primary-foreground mb-4">
-              Step Into
+              Re-invent
               <br />
-              Your Style
+              Your Look
             </h1>
             <p className="text-lg md:text-xl text-primary-foreground/80 mb-8 max-w-lg">
               Discover premium sneakers crafted for those who move with purpose. 
