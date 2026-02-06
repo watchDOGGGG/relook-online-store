@@ -1,7 +1,7 @@
 project_id = "pswsymgndmewzqzwjocw"
 
 [auth]
-site_url = "https://id-preview--6327cdf2-cc2f-4611-9425-287259fcf9c7.lovable.app"
+site_url = "https://relookstores.netlify.app"
 
 [auth.email]
 enable_signup = true

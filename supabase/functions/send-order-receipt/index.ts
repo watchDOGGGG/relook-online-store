@@ -55,21 +55,24 @@ serve(async (req) => {
       throw new Error("Missing required fields");
     }
 
-    console.log(`Sending order receipt to ${customerEmail} for order ${orderId}`);
+    console.log(
+      `Sending order receipt to ${customerEmail} for order ${orderId}`,
+    );
 
     // Format order items for the email
-    const itemsHtml = orderItems
-      ?.map(
-        (item) => `
+    const itemsHtml =
+      orderItems
+        ?.map(
+          (item) => `
         <tr>
           <td style="padding: 12px; border-bottom: 1px solid #eee;">${item.product_name}</td>
           <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">Size ${item.size}</td>
           <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
           <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">₦${(item.product_price * item.quantity).toLocaleString()}</td>
         </tr>
-      `
-      )
-      .join("") || "";
+      `,
+        )
+        .join("") || "";
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -85,7 +88,7 @@ serve(async (req) => {
               
               <!-- Header -->
               <div style="background-color: #000000; padding: 30px; text-align: center;">
-                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">RELOOKSHOES</h1>
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">RELOOKSTORES</h1>
               </div>
               
               <!-- Content -->
@@ -155,10 +158,10 @@ serve(async (req) => {
                 <!-- Footer -->
                 <div style="text-align: center; padding-top: 20px; border-top: 1px solid #eee;">
                   <p style="color: #999; font-size: 12px; margin: 0 0 5px;">
-                    Thank you for shopping with Relookshoes!
+                    Thank you for shopping with RelookStores!
                   </p>
                   <p style="color: #999; font-size: 12px; margin: 0;">
-                    © ${new Date().getFullYear()} Relookshoes. All rights reserved.
+                    © ${new Date().getFullYear()} Relookstores. All rights reserved.
                   </p>
                 </div>
               </div>
@@ -172,11 +175,11 @@ serve(async (req) => {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
+        Authorization: `Bearer ${RESEND_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Relookshoes <onboarding@resend.dev>",
+        from: "Relookstores <onboarding@resend.dev>",
         to: [customerEmail],
         subject: `Order Confirmed - #${orderId.slice(0, 8).toUpperCase()}`,
         html: emailHtml,
@@ -198,13 +201,14 @@ serve(async (req) => {
     });
   } catch (error: unknown) {
     console.error("Error sending order receipt:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      },
     );
   }
 });
