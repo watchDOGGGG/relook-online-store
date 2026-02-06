@@ -20,18 +20,83 @@ serve(async (req) => {
     }
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY) {
       throw new Error("Supabase environment variables not configured");
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    // Get authorization header for user authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      console.error("Missing authorization header");
+      return new Response(
+        JSON.stringify({ success: false, error: "Missing authorization header" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Create client with user's auth token to verify ownership
+    const supabaseUserClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    // Verify user authentication
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabaseUserClient.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error("Authentication failed:", claimsError);
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
+    console.log(`Authenticated user: ${userId}`);
 
     const { reference } = await req.json();
 
     if (!reference) {
       throw new Error("Missing reference");
+    }
+
+    // Verify order ownership before proceeding
+    const { data: order, error: orderError } = await supabaseUserClient
+      .from("orders")
+      .select("id, user_id")
+      .eq("payment_reference", reference)
+      .single();
+
+    if (orderError || !order) {
+      console.error("Order not found for reference:", reference, orderError);
+      return new Response(
+        JSON.stringify({ success: false, error: "Order not found" }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Verify the order belongs to the authenticated user
+    if (order.user_id !== userId) {
+      console.error(`Order ownership mismatch. Order user: ${order.user_id}, Auth user: ${userId}`);
+      return new Response(
+        JSON.stringify({ success: false, error: "Order does not belong to authenticated user" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     console.log(`Verifying Paystack payment for reference: ${reference}`);
@@ -59,8 +124,11 @@ serve(async (req) => {
     const isSuccessful = data.data.status === "success";
 
     if (isSuccessful) {
-      // Update order status to paid using payment reference
-      const { data: orderData, error: updateError } = await supabase
+      // Use service role key only for updating order status (after ownership verified)
+      const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+      // Update order status to paid
+      const { data: orderData, error: updateError } = await supabaseAdmin
         .from("orders")
         .update({ status: "paid", payment_reference: reference })
         .eq("payment_reference", reference)
@@ -78,12 +146,12 @@ serve(async (req) => {
       if (orderData) {
         try {
           const notificationResponse = await fetch(
-            `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-whatsapp`,
+            `${SUPABASE_URL}/functions/v1/send-whatsapp`,
             {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+                "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
               },
               body: JSON.stringify({
                 customerPhone: orderData.shipping_phone,
@@ -104,12 +172,12 @@ serve(async (req) => {
         // Send email receipt
         try {
           const emailResponse = await fetch(
-            `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-order-receipt`,
+            `${SUPABASE_URL}/functions/v1/send-order-receipt`,
             {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+                "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
               },
               body: JSON.stringify({
                 customerEmail: orderData.shipping_email,

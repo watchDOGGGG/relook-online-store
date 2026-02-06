@@ -4,17 +4,22 @@ import { CheckCircle, Loader2, XCircle, MessageCircle } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 const OrderConfirmation = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const reference = searchParams.get("reference");
+  const { user, loading: authLoading } = useAuth();
   
   const [verifying, setVerifying] = useState(true);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+
     const verifyPayment = async () => {
       if (!reference) {
         setError("No payment reference found");
@@ -22,7 +27,22 @@ const OrderConfirmation = () => {
         return;
       }
 
+      // Check if user is authenticated
+      if (!user) {
+        setError("Please sign in to verify your order");
+        setVerifying(false);
+        return;
+      }
+
       try {
+        // Get current session for auth token
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData?.session?.access_token) {
+          setError("Session expired. Please sign in again.");
+          setVerifying(false);
+          return;
+        }
+
         const { data, error: verifyError } = await supabase.functions.invoke(
           "paystack-verify",
           {
@@ -46,7 +66,7 @@ const OrderConfirmation = () => {
     };
 
     verifyPayment();
-  }, [reference]);
+  }, [reference, user, authLoading]);
 
   if (verifying) {
     return (
