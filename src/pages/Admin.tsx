@@ -39,7 +39,7 @@ const Admin = () => {
   const [formData, setFormData] = useState<ProductInput>({
     name: "",
     description: "",
-    price: 0,
+    price: "" as any,
     original_price: null,
     images: [],
     sizes: [],
@@ -64,7 +64,7 @@ const Admin = () => {
     setFormData({
       name: "",
       description: "",
-      price: 0,
+      price: "" as any,
       original_price: null,
       images: [],
       sizes: [],
@@ -152,7 +152,7 @@ const Admin = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name || formData.price <= 0) {
+    if (!formData.name || !formData.price || formData.price <= 0) {
       toast.error("Please fill in required fields");
       return;
     }
@@ -536,13 +536,14 @@ const Admin = () => {
                 <label className="block text-sm font-medium mb-2">Price (₦) *</label>
                 <input
                   type="number"
-                  value={formData.price}
+                  value={formData.price || ""}
                   onChange={(e) =>
                     setFormData((prev) => ({
                       ...prev,
-                      price: parseInt(e.target.value) || 0,
+                      price: e.target.value ? parseInt(e.target.value) : ("" as any),
                     }))
                   }
+                  placeholder="Enter price"
                   className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
                   required
                   min="0"
