@@ -13,6 +13,7 @@ export interface ProductCardProduct {
   category: string;
   isNew?: boolean;
   isSale?: boolean;
+  shippingFee?: number | null;
 }
 
 interface ProductCardProps {

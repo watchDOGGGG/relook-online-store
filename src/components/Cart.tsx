@@ -11,6 +11,8 @@ const Cart = () => {
     updateQuantity,
     totalItems,
     totalPrice,
+    totalShipping,
+    grandTotal,
     isCartOpen,
     setIsCartOpen,
   } = useCart();
@@ -151,13 +153,18 @@ const Cart = () => {
           {/* Footer */}
           {items.length > 0 && (
             <div className="border-t border-border p-6 space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span className="font-bold text-lg">{formatNaira(totalPrice)}</span>
+                <span>{formatNaira(totalPrice)}</span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Shipping calculated at checkout.
-              </p>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Shipping</span>
+                <span>{totalShipping > 0 ? formatNaira(totalShipping) : <span className="text-accent">Free</span>}</span>
+              </div>
+              <div className="flex items-center justify-between font-bold text-lg pt-2 border-t border-border">
+                <span>Total</span>
+                <span>{formatNaira(grandTotal)}</span>
+              </div>
               <button onClick={handleCheckout} className="w-full btn-primary py-4">
                 Checkout
               </button>

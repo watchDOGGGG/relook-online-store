@@ -48,6 +48,7 @@ const Admin = () => {
     is_sale: false,
     is_sold_out: false,
     stock_quantity: 0,
+    shipping_fee: null,
   });
   const [sizeInput, setSizeInput] = useState("");
   const [previewImages, setPreviewImages] = useState<string[]>([]);
@@ -73,6 +74,7 @@ const Admin = () => {
       is_sale: false,
       is_sold_out: false,
       stock_quantity: 0,
+      shipping_fee: null,
     });
     setSizeInput("");
     setPreviewImages([]);
@@ -95,6 +97,7 @@ const Admin = () => {
         is_sale: product.is_sale || false,
         is_sold_out: product.is_sold_out || false,
         stock_quantity: product.stock_quantity || 0,
+        shipping_fee: product.shipping_fee,
       });
       setPreviewImages(product.images || []);
     } else {
@@ -568,6 +571,52 @@ const Admin = () => {
                   min="0"
                 />
               </div>
+            </div>
+
+            {/* Shipping Fee */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Shipping Fee (₦)</label>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="shippingType"
+                    checked={formData.shipping_fee === null || formData.shipping_fee === 0}
+                    onChange={() =>
+                      setFormData((prev) => ({ ...prev, shipping_fee: null }))
+                    }
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">Free Shipping</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="shippingType"
+                    checked={formData.shipping_fee !== null && formData.shipping_fee > 0}
+                    onChange={() =>
+                      setFormData((prev) => ({ ...prev, shipping_fee: 1000 }))
+                    }
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">Custom Fee</span>
+                </label>
+              </div>
+              {formData.shipping_fee !== null && formData.shipping_fee > 0 && (
+                <input
+                  type="number"
+                  value={formData.shipping_fee || ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      shipping_fee: e.target.value ? parseInt(e.target.value) : null,
+                    }))
+                  }
+                  placeholder="Enter shipping fee"
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent mt-2"
+                  min="0"
+                />
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
