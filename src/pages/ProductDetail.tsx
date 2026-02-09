@@ -22,6 +22,7 @@ const convertProduct = (p: DBProduct) => ({
   category: p.category,
   isNew: p.is_new || false,
   isSale: p.is_sale || false,
+  shippingFee: p.shipping_fee,
 });
 
 const ProductDetail = () => {
@@ -273,9 +274,15 @@ const ProductDetail = () => {
                 <div className="flex items-center gap-4">
                   <Truck className="w-5 h-5 text-muted-foreground" />
                   <div>
-                    <p className="font-medium text-sm">Free Shipping</p>
+                    <p className="font-medium text-sm">
+                      {product.shipping_fee && product.shipping_fee > 0
+                        ? `Shipping: ${formatNaira(product.shipping_fee)}`
+                        : "Free Shipping"}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      On orders over ₦75,000
+                      {product.shipping_fee && product.shipping_fee > 0
+                        ? "Shipping fee applies to this item"
+                        : "This item ships for free"}
                     </p>
                   </div>
                 </div>

@@ -7,6 +7,7 @@ import Cart from "@/components/Cart";
 import { useCart } from "@/context/CartContext";
 import { useCheckout, ShippingInfo } from "@/context/CheckoutContext";
 import { useAuth } from "@/context/AuthContext";
+import { useAddresses } from "@/hooks/useAddresses";
 import { useCountries } from "@/hooks/useCountries";
 import { formatNaira } from "@/lib/formatCurrency";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,9 +15,10 @@ import { toast } from "sonner";
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { items, totalPrice, clearCart } = useCart();
+  const { items, totalPrice, totalShipping, grandTotal, clearCart } = useCart();
   const { shippingInfo, setShippingInfo, setIsPaymentComplete } = useCheckout();
   const { user } = useAuth();
+  const { data: addresses } = useAddresses();
   const { countries, loading: countriesLoading } = useCountries();
   
   const [formData, setFormData] = useState<ShippingInfo>({
@@ -40,6 +42,24 @@ const Checkout = () => {
       setFormData(prev => ({ ...prev, email: user.email! }));
     }
   }, [user]);
+
+  // Pre-fill from default address
+  useEffect(() => {
+    if (addresses && addresses.length > 0) {
+      const defaultAddr = addresses.find(a => a.is_default) || addresses[0];
+      setFormData(prev => ({
+        ...prev,
+        firstName: prev.firstName || defaultAddr.first_name,
+        lastName: prev.lastName || defaultAddr.last_name,
+        phone: prev.phone || defaultAddr.phone,
+        address: prev.address || defaultAddr.address,
+        city: prev.city || defaultAddr.city,
+        state: prev.state || defaultAddr.state,
+        country: prev.country || defaultAddr.country,
+        postalCode: prev.postalCode || defaultAddr.postal_code || "",
+      }));
+    }
+  }, [addresses]);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<ShippingInfo> = {};
@@ -103,7 +123,7 @@ const Checkout = () => {
         .insert({
           user_id: user.id,
           status: "pending",
-          total_amount: totalPrice,
+          total_amount: grandTotal,
           shipping_first_name: formData.firstName,
           shipping_last_name: formData.lastName,
           shipping_email: formData.email,
@@ -142,7 +162,7 @@ const Checkout = () => {
         {
           body: {
             email: formData.email,
-            amount: totalPrice * 100, // Convert to kobo
+            amount: grandTotal * 100, // Convert to kobo
             orderId: order.id,
             metadata: {
               customer_name: `${formData.firstName} ${formData.lastName}`,
@@ -429,7 +449,7 @@ const Checkout = () => {
                           Processing...
                         </>
                       ) : (
-                        `Pay ${formatNaira(totalPrice)}`
+                        `Pay ${formatNaira(grandTotal)}`
                       )}
                     </button>
                     <p className="text-xs text-muted-foreground text-center mt-4">
@@ -477,11 +497,11 @@ const Checkout = () => {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Shipping</span>
-                    <span className="text-accent">Free</span>
+                    <span>{totalShipping > 0 ? formatNaira(totalShipping) : <span className="text-accent">Free</span>}</span>
                   </div>
                   <div className="flex justify-between font-bold text-lg pt-2 border-t border-border">
                     <span>Total</span>
-                    <span>{formatNaira(totalPrice)}</span>
+                    <span>{formatNaira(grandTotal)}</span>
                   </div>
                 </div>
               </div>

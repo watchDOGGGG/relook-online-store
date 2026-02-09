@@ -26,6 +26,8 @@ interface CartContextType {
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
+  totalShipping: number;
+  grandTotal: number;
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
 }
@@ -90,6 +92,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     (sum, item) => sum + item.product.price * item.quantity,
     0
   );
+  const totalShipping = items.reduce(
+    (sum, item) => sum + (item.product.shippingFee || 0),
+    0
+  );
+  const grandTotal = totalPrice + totalShipping;
 
   return (
     <CartContext.Provider
@@ -101,6 +108,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearCart,
         totalItems,
         totalPrice,
+        totalShipping,
+        grandTotal,
         isCartOpen,
         setIsCartOpen,
       }}

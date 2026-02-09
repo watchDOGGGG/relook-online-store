@@ -14,6 +14,7 @@ export interface Product {
   is_sale: boolean | null;
   is_sold_out: boolean | null;
   stock_quantity: number | null;
+  shipping_fee: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -30,6 +31,7 @@ export interface ProductInput {
   is_sale?: boolean;
   is_sold_out?: boolean;
   stock_quantity?: number;
+  shipping_fee?: number | null;
 }
 
 export const useProducts = () => {
